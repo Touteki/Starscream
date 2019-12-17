@@ -140,8 +140,20 @@ open class FoundationStream : NSObject, WSStream, StreamDelegate  {
     private var outputStream: OutputStream?
     public weak var delegate: WSStreamDelegate?
     let BUFFER_MAX = 4096
-	
-	public var enableSOCKSProxy = false
+
+    private var enableSOCKSProxy = false
+    private var socksProxyHost = ""
+    private var socksProxyPort = ""
+    
+    public func enableSocksProxy(host: String, port: String) {
+        socksProxyHost = host
+        socksProxyPort = port
+        enableSOCKSProxy = true
+    }
+    
+    public func disableSocksProxy() {
+        enableSOCKSProxy = false
+    }
     
     public func connect(url: URL, port: Int, timeout: TimeInterval, ssl: SSLSettings, completion: @escaping ((Error?) -> Void)) {
         var readStream: Unmanaged<CFReadStream>?
@@ -154,11 +166,10 @@ open class FoundationStream : NSObject, WSStream, StreamDelegate  {
         #if os(watchOS) //watchOS us unfortunately is missing the kCFStream properties to make this work
         #else
             if enableSOCKSProxy {
-                let proxyDict = CFNetworkCopySystemProxySettings()
-                let socksConfig = CFDictionaryCreateMutableCopy(nil, 0, proxyDict!.takeRetainedValue())
                 let propertyKey = CFStreamPropertyKey(rawValue: kCFStreamPropertySOCKSProxy)
-                CFWriteStreamSetProperty(outputStream, propertyKey, socksConfig)
-                CFReadStreamSetProperty(inputStream, propertyKey, socksConfig)
+                let proxySocksConfig = ["SOCKSProxy": socksProxyHost, "SOCKSPort": socksProxyPort, "SOCKSEnable": true] as CFDictionary
+                CFWriteStreamSetProperty(outputStream, propertyKey, proxySocksConfig)
+                CFReadStreamSetProperty(inputStream, propertyKey, proxySocksConfig)
             }
         #endif
         
